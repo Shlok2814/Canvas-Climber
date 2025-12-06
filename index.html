@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Celestial Platformer Single-File Demo</title>
+    <title>Flappy Bird: Neon Night</title>
     <style>
         body {
             background-color: #121212; /* Deep Space Black */
@@ -11,198 +11,368 @@
             align-items: center;
             height: 100vh;
             margin: 0;
-            font-family: monospace;
-            color: #00FFFF;
-        }
-        #gameContainer {
+            overflow: hidden; /* Prevent scrollbars */
+            font-family: 'Press Start 2P', cursive; /* A retro arcade font, if available */
+            color: #00FFFF; /* Neon Cyan for text */
             text-align: center;
         }
-        canvas {
-            border: 3px solid #00FFFF; /* Neon Cyan border */
-            image-rendering: pixelated; /* Sharp, retro look */
-            margin-bottom: 10px;
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap'); /* Fallback for font */
+
+        #gameContainer {
+            position: relative;
+            background-color: #000000; /* Pure black for game background */
+            border: 3px solid #FFD700; /* Gold border for the game area */
+            box-shadow: 0 0 20px #FFD700; /* Glowing effect */
+            overflow: hidden; /* Hide anything outside the canvas */
+            width: 480px; /* Canvas width */
+            height: 640px; /* Canvas height */
         }
-        #controls {
-            font-size: 14px;
+        canvas {
+            display: block; /* Remove extra space below canvas */
+        }
+        #gameOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent overlay */
+            color: #FFD700; /* Gold for main messages */
+            font-size: 24px;
+            text-shadow: 0 0 8px #FFD700;
+            z-index: 10; /* Above the canvas */
+            cursor: pointer;
+        }
+        #gameOverlay.hidden {
+            display: none;
+        }
+        #gameOverMessage {
+            font-size: 32px;
+            margin-bottom: 20px;
+            color: #FF1493; /* Hot Pink for Game Over */
+            text-shadow: 0 0 10px #FF1493;
+        }
+        #scoreDisplay, #timeDisplay, #coinDisplay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #FFD700; /* Gold */
+            font-size: 18px;
+            text-shadow: 0 0 5px #FFD700;
+            z-index: 5;
+            pointer-events: none; /* Allow clicks to pass through */
+        }
+        #timeDisplay {
+            left: unset;
+            right: 10px;
+        }
+        #coinDisplay {
+            top: 40px;
+            left: 10px;
         }
     </style>
 </head>
 <body>
     <div id="gameContainer">
-        <canvas id="gameCanvas" width="640" height="480"></canvas>
-        <div id="controls">
-            Use **Left/Right Arrows** to Move, **Spacebar** to Jump.
+        <canvas id="gameCanvas" width="480" height="640"></canvas>
+        <div id="scoreDisplay">Score: 0</div>
+        <div id="coinDisplay">Coins: 0</div>
+        <div id="timeDisplay">Time: 0s</div>
+
+        <div id="gameOverlay">
+            <h1 id="gameOverMessage" style="display: none;">GAME OVER</h1>
+            <h2>Flappy Bird: Neon Night</h2>
+            <p>Press **SPACEBAR** to Start / Flap</p>
+            <p>Collect 🟡 Coins!</p>
+            <p style="font-size: 16px; margin-top: 20px;">
+                High Score: <span id="highScore">0</span><br>
+                Total Coins: <span id="totalCoins">0</span>
+            </p>
         </div>
     </div>
-    
+
     <script>
-        // --- Game Setup ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const gameOverlay = document.getElementById('gameOverlay');
+        const gameOverMessage = document.getElementById('gameOverMessage');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const coinDisplay = document.getElementById('coinDisplay');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const highScoreSpan = document.getElementById('highScore');
+        const totalCoinsSpan = document.getElementById('totalCoins');
 
-        const TILE_SIZE = 32; // Size of each tile in pixels
-        const TILE_COLOR = '#7F00FF'; // Electric Violet
+        // --- Game Constants ---
+        const BIRD_WIDTH = 40;
+        const BIRD_HEIGHT = 30;
+        const BIRD_COLOR = '#FFFF00'; // Bright Yellow
 
-        // Simple Tilemap (0 = empty, 1 = solid tile)
-        // Map is 20 tiles wide (640/32) and 15 tiles high (480/32)
-        const gameMap = [
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // The ground
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-        ];
+        const PIPE_WIDTH = 80;
+        const PIPE_COLOR = '#00FF00'; // Neon Green
+        const PIPE_SPEED = 2; // Pixels per frame
+        const PIPE_GAP = 180; // Gap height between top and bottom pipes
+        const PIPE_SPAWN_INTERVAL = 150; // Frames between pipe spawns
 
-        // --- Player Object ---
-        const player = {
-            x: 100,
-            y: 350,
-            width: 20,
-            height: 30,
-            color: '#00FFFF', // Neon Cyan
-            velX: 0,
+        const GRAVITY = 0.3;
+        const FLAP_STRENGTH = -5.5; // Upward velocity on flap
+
+        const COIN_SIZE = 20;
+        const COIN_COLOR = '#FFD700'; // Gold
+        const COIN_SPAWN_CHANCE = 0.6; // Probability of a coin spawning with a pipe
+
+        // --- Game State Variables ---
+        let bird = {
+            x: 80,
+            y: canvas.height / 2 - BIRD_HEIGHT / 2,
             velY: 0,
-            speed: 3,
-            jumpStrength: -8, // Negative for upward movement
-            gravity: 0.3,
-            isGrounded: false
+            rotation: 0 // For visual tilt
         };
 
-        let keys = {};
-        document.addEventListener('keydown', (e) => { keys[e.key] = true; });
-        document.addEventListener('keyup', (e) => { keys[e.key] = false; });
+        let pipes = [];
+        let coins = [];
+        let score = 0;
+        let coinsCollected = 0;
+        let frames = 0;
+        let gameStarted = false;
+        let gameOver = false;
+        let lastPipeSpawnFrame = 0;
+        let gameTime = 0;
+        let gameInterval;
+        let animationFrameId;
 
-        // --- Core Functions ---
+        // Load high score and total coins from local storage
+        let highScore = localStorage.getItem('flappyHighScore') || 0;
+        let totalCoinsEver = parseInt(localStorage.getItem('flappyTotalCoins') || 0);
 
-        /**
-         * Checks if a tile at the given pixel coordinates (x, y) is solid (type 1).
-         */
-        function isSolid(x, y) {
-            // Convert pixel coordinates to tile coordinates
-            const tileX = Math.floor(x / TILE_SIZE);
-            const tileY = Math.floor(y / TILE_SIZE);
+        highScoreSpan.textContent = highScore;
+        totalCoinsSpan.textContent = totalCoinsEver;
 
-            // Basic bounds checking
-            if (tileX < 0 || tileY < 0 || tileY >= gameMap.length || tileX >= gameMap[0].length) {
-                return false;
-            }
-            
-            // Check map value
-            return gameMap[tileY][tileX] === 1;
+        // --- Helper Functions ---
+        function resetGame() {
+            bird = {
+                x: 80,
+                y: canvas.height / 2 - BIRD_HEIGHT / 2,
+                velY: 0,
+                rotation: 0
+            };
+            pipes = [];
+            coins = [];
+            score = 0;
+            coinsCollected = 0;
+            frames = 0;
+            gameTime = 0;
+            gameStarted = false;
+            gameOver = false;
+            lastPipeSpawnFrame = 0;
+
+            scoreDisplay.textContent = `Score: ${score}`;
+            coinDisplay.textContent = `Coins: ${coinsCollected}`;
+            timeDisplay.textContent = `Time: ${gameTime}s`;
+
+            gameOverlay.classList.remove('hidden');
+            gameOverMessage.style.display = 'none';
         }
 
-        /**
-         * Handles all player movement and tile-based collision resolution.
-         */
-        function updatePlayer() {
-            // 1. Apply Gravity
-            player.velY += player.gravity;
-
-            // 2. Handle Horizontal Movement
-            if (keys['ArrowLeft']) {
-                player.velX = -player.speed;
-            } else if (keys['ArrowRight']) {
-                player.velX = player.speed;
-            } else {
-                player.velX = 0;
-            }
-
-            // 3. Handle Jump
-            if (keys[' ']) { // Spacebar for jump
-                if (player.isGrounded) {
-                    player.velY = player.jumpStrength;
-                    player.isGrounded = false;
-                }
-            }
-
-            // 4. Update Position (X-Axis)
-            player.x += player.velX;
-            
-            // Horizontal Collision Check (AABB vs Tile)
-            if ((player.velX > 0 && isSolid(player.x + player.width, player.y) || 
-                player.velX > 0 && isSolid(player.x + player.width, player.y + player.height - 1)) ||
-                (player.velX < 0 && isSolid(player.x, player.y) ||
-                player.velX < 0 && isSolid(player.x, player.y + player.height - 1))) 
-            {
-                player.x -= player.velX;
-                player.velX = 0;
-            }
-
-            // 5. Update Position (Y-Axis)
-            player.y += player.velY;
-            player.isGrounded = false;
-
-            // Vertical Collision Check (AABB vs Tile)
-            if ((player.velY > 0 && isSolid(player.x + player.width / 2, player.y + player.height)) ||
-                (player.velY < 0 && isSolid(player.x + player.width / 2, player.y))) 
-            {
-                if (player.velY > 0) { // Landing
-                    player.isGrounded = true;
-                    player.y = Math.floor((player.y + player.height) / TILE_SIZE) * TILE_SIZE - player.height;
-                } else { // Hitting head
-                    player.y = (Math.floor(player.y / TILE_SIZE) + 1) * TILE_SIZE;
-                }
-                player.velY = 0;
+        function startGame() {
+            if (!gameStarted) {
+                gameStarted = true;
+                gameOver = false;
+                gameOverlay.classList.add('hidden');
+                gameInterval = setInterval(() => {
+                    gameTime++;
+                    timeDisplay.textContent = `Time: ${gameTime}s`;
+                }, 1000);
+                gameLoop(); // Start the animation loop
             }
         }
 
-        /**
-         * Draws the tile map to the canvas.
-         */
-        function drawMap() {
-            ctx.fillStyle = TILE_COLOR;
-            for (let y = 0; y < gameMap.length; y++) {
-                for (let x = 0; x < gameMap[y].length; x++) {
-                    if (gameMap[y][x] === 1) {
-                        // Draw a solid tile
-                        ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-                        
-                        // Add a slight grid line for visual appeal
-                        ctx.strokeStyle = '#5A00AB'; // Darker violet for separation
-                        ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        function endGame() {
+            gameOver = true;
+            gameStarted = false;
+            clearInterval(gameInterval); // Stop time counter
+            cancelAnimationFrame(animationFrameId); // Stop animation loop
+
+            // Update high score and total coins
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('flappyHighScore', highScore);
+                highScoreSpan.textContent = highScore;
+            }
+            totalCoinsEver += coinsCollected;
+            localStorage.setItem('flappyTotalCoins', totalCoinsEver);
+            totalCoinsSpan.textContent = totalCoinsEver;
+
+            gameOverMessage.style.display = 'block';
+            gameOverlay.classList.remove('hidden');
+        }
+
+        function flap() {
+            if (gameStarted && !gameOver) {
+                bird.velY = FLAP_STRENGTH;
+            } else if (!gameStarted && !gameOver) {
+                startGame();
+            } else if (gameOver) {
+                resetGame();
+            }
+        }
+
+        // --- Drawing Functions ---
+        function drawBird() {
+            ctx.save();
+            ctx.translate(bird.x + BIRD_WIDTH / 2, bird.y + BIRD_HEIGHT / 2);
+            ctx.rotate(bird.rotation);
+            ctx.fillStyle = BIRD_COLOR;
+            ctx.fillRect(-BIRD_WIDTH / 2, -BIRD_HEIGHT / 2, BIRD_WIDTH, BIRD_HEIGHT);
+            ctx.restore();
+        }
+
+        function drawPipes() {
+            ctx.fillStyle = PIPE_COLOR;
+            for (const p of pipes) {
+                ctx.fillRect(p.x, 0, PIPE_WIDTH, p.topHeight);
+                ctx.fillRect(p.x, p.bottomY, PIPE_WIDTH, canvas.height - p.bottomY);
+            }
+        }
+
+        function drawCoins() {
+            ctx.fillStyle = COIN_COLOR;
+            for (const c of coins) {
+                ctx.beginPath();
+                ctx.arc(c.x + COIN_SIZE / 2, c.y + COIN_SIZE / 2, COIN_SIZE / 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // --- Game Logic Updates ---
+        function updateBird() {
+            bird.velY += GRAVITY;
+            bird.y += bird.velY;
+
+            // Update rotation based on velocity for visual tilt
+            bird.rotation = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, bird.velY * 0.05));
+
+            // Ground/Ceiling Collision
+            if (bird.y + BIRD_HEIGHT > canvas.height || bird.y < 0) {
+                endGame();
+            }
+        }
+
+        function updatePipes() {
+            // Spawn new pipes
+            if (frames - lastPipeSpawnFrame > PIPE_SPAWN_INTERVAL) {
+                const minPipeHeight = 80;
+                const maxPipeHeight = canvas.height - PIPE_GAP - minPipeHeight;
+                const topHeight = minPipeHeight + Math.random() * (maxPipeHeight - minPipeHeight);
+                const bottomY = topHeight + PIPE_GAP;
+
+                pipes.push({ x: canvas.width, topHeight, bottomY, passed: false });
+                lastPipeSpawnFrame = frames;
+
+                // Possibly spawn a coin with the new pipe
+                if (Math.random() < COIN_SPAWN_CHANCE) {
+                    coins.push({
+                        x: canvas.width + PIPE_WIDTH / 2 - COIN_SIZE / 2,
+                        y: topHeight + PIPE_GAP / 2 - COIN_SIZE / 2 // Centered in the gap
+                    });
+                }
+            }
+
+            // Move and check collision for pipes
+            for (let i = pipes.length - 1; i >= 0; i--) {
+                const p = pipes[i];
+                p.x -= PIPE_SPEED;
+
+                // Pipe-Bird Collision (AABB)
+                const birdRight = bird.x + BIRD_WIDTH;
+                const birdBottom = bird.y + BIRD_HEIGHT;
+
+                const pipeRight = p.x + PIPE_WIDTH;
+
+                if (birdRight > p.x && bird.x < pipeRight) { // Bird is horizontally aligned with pipe
+                    if (bird.y < p.topHeight || birdBottom > p.bottomY) { // Collision vertically
+                        endGame();
+                        return; // Stop checking further collisions
                     }
                 }
+
+                // Score update
+                if (p.x + PIPE_WIDTH < bird.x && !p.passed) {
+                    score++;
+                    scoreDisplay.textContent = `Score: ${score}`;
+                    p.passed = true;
+                }
+
+                // Remove off-screen pipes
+                if (p.x + PIPE_WIDTH < 0) {
+                    pipes.splice(i, 1);
+                }
             }
         }
 
-        /**
-         * Draws the player character.
-         */
-        function drawPlayer() {
-            ctx.fillStyle = player.color;
-            ctx.fillRect(player.x, player.y, player.width, player.height);
+        function updateCoins() {
+            for (let i = coins.length - 1; i >= 0; i--) {
+                const c = coins[i];
+                c.x -= PIPE_SPEED; // Coins move with pipes
+
+                // Coin-Bird Collision (AABB)
+                const birdRight = bird.x + BIRD_WIDTH;
+                const birdBottom = bird.y + BIRD_HEIGHT;
+                const coinRight = c.x + COIN_SIZE;
+                const coinBottom = c.y + COIN_SIZE;
+
+                if (birdRight > c.x && bird.x < coinRight &&
+                    birdBottom > c.y && bird.y < coinBottom) {
+                    coinsCollected++;
+                    totalCoinsEver++; // Add to total collected in this session
+                    coinDisplay.textContent = `Coins: ${coinsCollected}`;
+                    coins.splice(i, 1); // Remove collected coin
+                }
+
+                // Remove off-screen coins
+                if (c.x + COIN_SIZE < 0) {
+                    coins.splice(i, 1);
+                }
+            }
         }
 
-        /**
-         * The main game loop function.
-         */
+
+        // --- Main Game Loop ---
         function gameLoop() {
-            // 1. Clear the canvas 
+            if (gameOver) return;
+
+            // Clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#000000'; // Pure black game background
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // 2. Update Game Logic
-            updatePlayer();
+            if (gameStarted) {
+                updateBird();
+                updatePipes();
+                updateCoins();
+                frames++;
+            }
 
-            // 3. Draw Game Elements
-            drawMap();
-            drawPlayer();
+            drawPipes();
+            drawCoins();
+            drawBird();
 
-            // Request the next frame for smooth animation
-            requestAnimationFrame(gameLoop);
+            animationFrameId = requestAnimationFrame(gameLoop);
         }
 
-        // Start the game loop
-        gameLoop();
+        // --- Event Listeners ---
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'Spacebar') {
+                flap();
+            }
+        });
+        gameOverlay.addEventListener('click', flap); // Also allow click to start/flap
+
+        // Initialize the game
+        resetGame();
     </script>
 </body>
 </html>
