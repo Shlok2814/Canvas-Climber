@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Flappy Bird: Neon Night</title>
+    <title>Flappy Bird: Neon Night Enhanced</title>
     <style>
+        /* Base styles from previous version */
         body {
             background-color: #121212; /* Deep Space Black */
             display: flex;
@@ -11,25 +12,56 @@
             align-items: center;
             height: 100vh;
             margin: 0;
-            overflow: hidden; /* Prevent scrollbars */
-            font-family: 'Press Start 2P', cursive; /* A retro arcade font, if available */
+            overflow: hidden;
+            font-family: 'Press Start 2P', monospace;
             color: #00FFFF; /* Neon Cyan for text */
             text-align: center;
         }
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap'); /* Fallback for font */
+        /* Import the retro font */
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap'); 
 
         #gameContainer {
             position: relative;
-            background-color: #000000; /* Pure black for game background */
-            border: 3px solid #FFD700; /* Gold border for the game area */
-            box-shadow: 0 0 20px #FFD700; /* Glowing effect */
-            overflow: hidden; /* Hide anything outside the canvas */
-            width: 480px; /* Canvas width */
-            height: 640px; /* Canvas height */
+            background-color: #000000;
+            border: 3px solid #FFD700; 
+            box-shadow: 0 0 25px #FFD700; 
+            overflow: hidden;
+            width: 480px; 
+            height: 640px; 
+            /* Set font size for UI elements inside the container */
+            font-size: 14px;
         }
         canvas {
-            display: block; /* Remove extra space below canvas */
+            display: block;
         }
+        
+        /* --- UI Styles --- */
+        .ui-box {
+            position: absolute;
+            top: 10px;
+            padding: 5px 8px;
+            background-color: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00FFFF; /* Neon Cyan Border */
+            color: #FFD700; /* Gold/Yellow Value */
+            text-shadow: 0 0 5px #FFD700;
+            z-index: 5;
+            min-width: 60px;
+            pointer-events: none;
+            line-height: 1.2;
+        }
+        .ui-label {
+            display: block;
+            font-size: 9px;
+            color: #00FFFF; /* Neon Cyan Label */
+            margin-bottom: 2px;
+            border-bottom: 1px dashed #00FFFF;
+        }
+        
+        #scoreBox { left: 10px; }
+        #timeBox { left: 50%; transform: translateX(-50%); }
+        #coinBox { right: 10px; }
+
+        /* --- Overlay Styles (Improved Aesthetic) --- */
         #gameOverlay {
             position: absolute;
             top: 0;
@@ -40,58 +72,76 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent overlay */
-            color: #FFD700; /* Gold for main messages */
-            font-size: 24px;
+            background-color: rgba(0, 0, 0, 0.85); /* Darker overlay */
+            color: #FFD700; 
+            font-size: 20px;
             text-shadow: 0 0 8px #FFD700;
-            z-index: 10; /* Above the canvas */
+            z-index: 10;
             cursor: pointer;
+            padding-bottom: 80px; /* Space for the bird image */
         }
         #gameOverlay.hidden {
             display: none;
         }
-        #gameOverMessage {
+        #title {
             font-size: 32px;
-            margin-bottom: 20px;
+            color: #00FFFF; /* Neon Cyan Title */
+            margin-bottom: 5px;
+            text-shadow: 0 0 15px #00FFFF;
+        }
+        #gameOverMessage {
+            font-size: 40px;
+            margin-bottom: 25px;
             color: #FF1493; /* Hot Pink for Game Over */
-            text-shadow: 0 0 10px #FF1493;
+            text-shadow: 0 0 15px #FF1493;
+            animation: pulse 1s infinite alternate;
         }
-        #scoreDisplay, #timeDisplay, #coinDisplay {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: #FFD700; /* Gold */
-            font-size: 18px;
-            text-shadow: 0 0 5px #FFD700;
-            z-index: 5;
-            pointer-events: none; /* Allow clicks to pass through */
+        #overlayStats {
+            font-size: 12px;
+            margin-top: 30px;
+            padding: 10px;
+            border: 1px solid #7F00FF; /* Violet border */
+            background-color: rgba(127, 0, 255, 0.2); /* Semi-transparent violet background */
         }
-        #timeDisplay {
-            left: unset;
-            right: 10px;
-        }
-        #coinDisplay {
-            top: 40px;
-            left: 10px;
+        
+        /* Add a simple animation for "GAME OVER" */
+        @keyframes pulse {
+            from { opacity: 1.0; }
+            to { opacity: 0.8; }
         }
     </style>
 </head>
 <body>
     <div id="gameContainer">
         <canvas id="gameCanvas" width="480" height="640"></canvas>
-        <div id="scoreDisplay">Score: 0</div>
-        <div id="coinDisplay">Coins: 0</div>
-        <div id="timeDisplay">Time: 0s</div>
-
+        
+        <div id="scoreBox" class="ui-box">
+            <span class="ui-label">SCORE</span>
+            <span id="scoreValue">0</span>
+        </div>
+        <div id="coinBox" class="ui-box">
+            <span class="ui-label">COINS</span>
+            <span id="coinValue">0</span>
+        </div>
+        <div id="timeBox" class="ui-box">
+            <span class="ui-label">TIME</span>
+            <span id="timeValue">0.0s</span>
+        </div>
+        
         <div id="gameOverlay">
+            <h1 id="title">Flappy Bird: Neon Night</h1>
             <h1 id="gameOverMessage" style="display: none;">GAME OVER</h1>
-            <h2>Flappy Bird: Neon Night</h2>
-            <p>Press **SPACEBAR** to Start / Flap</p>
+            
+            <p>Press **SPACEBAR** or Click to Start / Flap</p>
             <p>Collect 🟡 Coins!</p>
-            <p style="font-size: 16px; margin-top: 20px;">
-                High Score: <span id="highScore">0</span><br>
-                Total Coins: <span id="totalCoins">0</span>
-            </p>
+
+            <div id="overlayStats">
+                HIGH SCORE: <span id="highScore">0</span><br>
+                TOTAL COINS: <span id="totalCoins">0</span>
+            </div>
+            
+            <div id="flappingBirdOverlay" style="position: absolute; bottom: 100px; width: 60px; height: 45px;">
+                </div>
         </div>
     </div>
 
@@ -100,11 +150,12 @@
         const ctx = canvas.getContext('2d');
         const gameOverlay = document.getElementById('gameOverlay');
         const gameOverMessage = document.getElementById('gameOverMessage');
-        const scoreDisplay = document.getElementById('scoreDisplay');
-        const coinDisplay = document.getElementById('coinDisplay');
-        const timeDisplay = document.getElementById('timeDisplay');
+        const scoreValue = document.getElementById('scoreValue');
+        const coinValue = document.getElementById('coinValue');
+        const timeValue = document.getElementById('timeValue');
         const highScoreSpan = document.getElementById('highScore');
         const totalCoinsSpan = document.getElementById('totalCoins');
+        const flappingBirdOverlay = document.getElementById('flappingBirdOverlay');
 
         // --- Game Constants ---
         const BIRD_WIDTH = 40;
@@ -113,25 +164,18 @@
 
         const PIPE_WIDTH = 80;
         const PIPE_COLOR = '#00FF00'; // Neon Green
-        const PIPE_SPEED = 2; // Pixels per frame
-        const PIPE_GAP = 180; // Gap height between top and bottom pipes
-        const PIPE_SPAWN_INTERVAL = 150; // Frames between pipe spawns
+        const PIPE_SPEED = 2.5; // Slightly faster for challenge
+        const PIPE_GAP = 180; 
+        const PIPE_SPAWN_INTERVAL = 120; // Faster spawn
 
-        const GRAVITY = 0.3;
-        const FLAP_STRENGTH = -5.5; // Upward velocity on flap
+        const GRAVITY = 0.35;
+        const FLAP_STRENGTH = -6.5; 
 
         const COIN_SIZE = 20;
         const COIN_COLOR = '#FFD700'; // Gold
-        const COIN_SPAWN_CHANCE = 0.6; // Probability of a coin spawning with a pipe
 
         // --- Game State Variables ---
-        let bird = {
-            x: 80,
-            y: canvas.height / 2 - BIRD_HEIGHT / 2,
-            velY: 0,
-            rotation: 0 // For visual tilt
-        };
-
+        let bird = { x: 80, y: canvas.height / 2, velY: 0, rotation: 0 };
         let pipes = [];
         let coins = [];
         let score = 0;
@@ -139,26 +183,130 @@
         let frames = 0;
         let gameStarted = false;
         let gameOver = false;
-        let lastPipeSpawnFrame = 0;
-        let gameTime = 0;
-        let gameInterval;
+        let gameStartTime = 0;
         let animationFrameId;
 
-        // Load high score and total coins from local storage
-        let highScore = localStorage.getItem('flappyHighScore') || 0;
+        // Load stats
+        let highScore = parseInt(localStorage.getItem('flappyHighScore') || 0);
         let totalCoinsEver = parseInt(localStorage.getItem('flappyTotalCoins') || 0);
 
         highScoreSpan.textContent = highScore;
         totalCoinsSpan.textContent = totalCoinsEver;
 
-        // --- Helper Functions ---
+        // --- Drawing Helper Functions (To mimic pixel art) ---
+
+        /** Draws the stylized pixel bird. */
+        function drawPixelBird(x, y, w, h) {
+            // Main Body (Yellow)
+            ctx.fillStyle = BIRD_COLOR;
+            ctx.fillRect(x, y + 2, w, h - 4); // Main rectangle
+            ctx.fillRect(x + 5, y, w - 10, 5); // Head top
+
+            // Tail (Red)
+            ctx.fillStyle = '#FF0000';
+            ctx.fillRect(x - 5, y + h - 10, 10, 5); 
+            ctx.fillRect(x - 5, y + h - 15, 5, 5); 
+
+            // Beak (Red)
+            ctx.fillStyle = '#FF0000';
+            ctx.beginPath();
+            ctx.moveTo(x + w, y + h / 2);
+            ctx.lineTo(x + w + 5, y + h / 2 - 3);
+            ctx.lineTo(x + w, y + h / 2 + 3);
+            ctx.fill();
+
+            // Eye (Black)
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(x + w * 0.7, y + h * 0.3, 3, 3);
+        }
+
+        /** Draws a pipe with a glowing effect. */
+        function drawGlowingPipe(x, height, isBottom) {
+            const y = isBottom ? height : 0;
+            const h = isBottom ? canvas.height - height : height;
+            
+            // Draw Main Pipe Body (Neon Green)
+            ctx.fillStyle = PIPE_COLOR;
+            ctx.fillRect(x, y, PIPE_WIDTH, h);
+            
+            // Draw Pipe Cap (Wider)
+            const capHeight = 20;
+            ctx.fillRect(x - 5, isBottom ? y - capHeight : y + h, PIPE_WIDTH + 10, capHeight);
+
+            // Draw Glow (Inner Shadow/Effect)
+            const gradient = ctx.createLinearGradient(x, 0, x + PIPE_WIDTH, 0);
+            gradient.addColorStop(0, 'rgba(0, 255, 0, 0.5)'); // Strong green
+            gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.0)'); // Transparent center
+            gradient.addColorStop(1, 'rgba(0, 255, 0, 0.5)'); // Strong green
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x, y, PIPE_WIDTH, h);
+        }
+
+        /** Draws the stylized repeating background/floor. */
+        function drawBackground() {
+            // 1. Far Background (Starry Grid)
+            ctx.fillStyle = '#1D1D4A'; // Dark Blue/Violet
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw Grid Lines and Stars (Simplified scrolling effect)
+            const gridSize = 32;
+            ctx.strokeStyle = '#2F2F5F'; // Faint grid color
+            for (let i = 0; i < canvas.width / gridSize + 1; i++) {
+                const drawX = (i * gridSize - frames * PIPE_SPEED * 0.1) % (canvas.width + gridSize);
+                ctx.beginPath();
+                ctx.moveTo(drawX, 0);
+                ctx.lineTo(drawX, canvas.height);
+                ctx.stroke();
+            }
+            
+            // 2. Neon Ground/Liquid (Bottom 15% of screen)
+            const floorHeight = canvas.height * 0.15;
+            const floorY = canvas.height - floorHeight;
+            ctx.fillStyle = '#FF1493'; // Hot Pink Lava
+            ctx.fillRect(0, floorY, canvas.width, floorHeight);
+            
+            // Draw the repeating neon rock pattern/texture
+            const textureY = floorY + 5;
+            const textureWidth = 100;
+            const textureGap = 20;
+            ctx.fillStyle = '#7F00FF'; // Electric Violet Rock
+            for (let i = 0; i < canvas.width / (textureWidth + textureGap) + 2; i++) {
+                const drawX = (i * (textureWidth + textureGap) - frames * PIPE_SPEED * 0.5) % (canvas.width + textureWidth + textureGap);
+                if (drawX < 0) drawX += canvas.width + textureWidth + textureGap; // Wrap left
+                
+                ctx.fillRect(drawX, textureY, textureWidth, 5);
+                ctx.fillRect(drawX + 10, textureY + 5, textureWidth - 20, 5);
+            }
+        }
+        
+        /** Draws the floating island elements (non-scrolling, for depth). */
+        function drawFloatingIslands() {
+            // Define islands (X, Y, Size) - Fixed positions
+            const islands = [
+                { x: 50, y: 150, size: 50 },
+                { x: 400, y: 100, size: 40 },
+                { x: 250, y: 50, size: 30 }
+            ];
+            ctx.fillStyle = '#7F00FF'; // Violet Island color
+            
+            for (const island of islands) {
+                // Draw the island body (simple ellipse/circle for pixel shape)
+                ctx.beginPath();
+                ctx.ellipse(island.x, island.y, island.size, island.size * 0.6, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw the green glow effect beneath (moss/energy)
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+                ctx.fillRect(island.x - island.size, island.y + island.size * 0.5, island.size * 2, 5);
+            }
+        }
+
+        // --- Game Logic ---
+
         function resetGame() {
-            bird = {
-                x: 80,
-                y: canvas.height / 2 - BIRD_HEIGHT / 2,
-                velY: 0,
-                rotation: 0
-            };
+            // Reset core state
+            bird = { x: 80, y: canvas.height / 2, velY: 0, rotation: 0 };
             pipes = [];
             coins = [];
             score = 0;
@@ -167,11 +315,14 @@
             gameTime = 0;
             gameStarted = false;
             gameOver = false;
-            lastPipeSpawnFrame = 0;
+            gameStartTime = 0;
 
-            scoreDisplay.textContent = `Score: ${score}`;
-            coinDisplay.textContent = `Coins: ${coinsCollected}`;
-            timeDisplay.textContent = `Time: ${gameTime}s`;
+            // Reset UI
+            scoreValue.textContent = 0;
+            coinValue.textContent = 0;
+            timeValue.textContent = '0.0s';
+            highScoreSpan.textContent = highScore;
+            totalCoinsSpan.textContent = totalCoinsEver;
 
             gameOverlay.classList.remove('hidden');
             gameOverMessage.style.display = 'none';
@@ -181,128 +332,101 @@
             if (!gameStarted) {
                 gameStarted = true;
                 gameOver = false;
+                gameStartTime = performance.now();
                 gameOverlay.classList.add('hidden');
-                gameInterval = setInterval(() => {
-                    gameTime++;
-                    timeDisplay.textContent = `Time: ${gameTime}s`;
-                }, 1000);
-                gameLoop(); // Start the animation loop
+                gameLoop();
             }
         }
 
         function endGame() {
             gameOver = true;
             gameStarted = false;
-            clearInterval(gameInterval); // Stop time counter
-            cancelAnimationFrame(animationFrameId); // Stop animation loop
+            cancelAnimationFrame(animationFrameId);
 
-            // Update high score and total coins
+            // Update stats
             if (score > highScore) {
                 highScore = score;
                 localStorage.setItem('flappyHighScore', highScore);
-                highScoreSpan.textContent = highScore;
             }
             totalCoinsEver += coinsCollected;
             localStorage.setItem('flappyTotalCoins', totalCoinsEver);
-            totalCoinsSpan.textContent = totalCoinsEver;
 
+            // Display Game Over state
             gameOverMessage.style.display = 'block';
             gameOverlay.classList.remove('hidden');
+            
+            // Update stats on overlay after final score is calculated
+            highScoreSpan.textContent = highScore;
+            totalCoinsSpan.textContent = totalCoinsEver;
         }
 
         function flap() {
-            if (gameStarted && !gameOver) {
-                bird.velY = FLAP_STRENGTH;
-            } else if (!gameStarted && !gameOver) {
-                startGame();
-            } else if (gameOver) {
+            if (gameOver) {
                 resetGame();
+            } else if (gameStarted) {
+                bird.velY = FLAP_STRENGTH;
+            } else {
+                startGame();
             }
         }
 
-        // --- Drawing Functions ---
-        function drawBird() {
-            ctx.save();
-            ctx.translate(bird.x + BIRD_WIDTH / 2, bird.y + BIRD_HEIGHT / 2);
-            ctx.rotate(bird.rotation);
-            ctx.fillStyle = BIRD_COLOR;
-            ctx.fillRect(-BIRD_WIDTH / 2, -BIRD_HEIGHT / 2, BIRD_WIDTH, BIRD_HEIGHT);
-            ctx.restore();
-        }
-
-        function drawPipes() {
-            ctx.fillStyle = PIPE_COLOR;
-            for (const p of pipes) {
-                ctx.fillRect(p.x, 0, PIPE_WIDTH, p.topHeight);
-                ctx.fillRect(p.x, p.bottomY, PIPE_WIDTH, canvas.height - p.bottomY);
+        function updateTime() {
+            if (gameStarted) {
+                const elapsed = (performance.now() - gameStartTime) / 1000;
+                timeValue.textContent = elapsed.toFixed(1) + 's';
             }
         }
 
-        function drawCoins() {
-            ctx.fillStyle = COIN_COLOR;
-            for (const c of coins) {
-                ctx.beginPath();
-                ctx.arc(c.x + COIN_SIZE / 2, c.y + COIN_SIZE / 2, COIN_SIZE / 2, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        // --- Game Logic Updates ---
         function updateBird() {
             bird.velY += GRAVITY;
             bird.y += bird.velY;
 
-            // Update rotation based on velocity for visual tilt
-            bird.rotation = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, bird.velY * 0.05));
+            // Rotation based on velocity
+            bird.rotation = Math.min(Math.PI / 3, Math.max(-Math.PI / 4, bird.velY * 0.05));
 
-            // Ground/Ceiling Collision
-            if (bird.y + BIRD_HEIGHT > canvas.height || bird.y < 0) {
+            // Collision with floor/ceiling (floor starts at 85% height)
+            const floorY = canvas.height * 0.85; 
+            if (bird.y + BIRD_HEIGHT > floorY || bird.y < 0) {
                 endGame();
             }
         }
 
-        function updatePipes() {
+        function updatePipesAndCoins() {
             // Spawn new pipes
-            if (frames - lastPipeSpawnFrame > PIPE_SPAWN_INTERVAL) {
-                const minPipeHeight = 80;
-                const maxPipeHeight = canvas.height - PIPE_GAP - minPipeHeight;
+            if (frames % PIPE_SPAWN_INTERVAL === 0) {
+                const minPipeHeight = 100;
+                const maxPipeHeight = (canvas.height * 0.85) - PIPE_GAP - minPipeHeight;
                 const topHeight = minPipeHeight + Math.random() * (maxPipeHeight - minPipeHeight);
                 const bottomY = topHeight + PIPE_GAP;
 
                 pipes.push({ x: canvas.width, topHeight, bottomY, passed: false });
-                lastPipeSpawnFrame = frames;
 
-                // Possibly spawn a coin with the new pipe
-                if (Math.random() < COIN_SPAWN_CHANCE) {
+                // Spawn a coin centered in the gap
+                if (Math.random() < 0.7) {
                     coins.push({
                         x: canvas.width + PIPE_WIDTH / 2 - COIN_SIZE / 2,
-                        y: topHeight + PIPE_GAP / 2 - COIN_SIZE / 2 // Centered in the gap
+                        y: topHeight + PIPE_GAP / 2 - COIN_SIZE / 2 
                     });
                 }
             }
 
-            // Move and check collision for pipes
+            // Move, check, and clean up
             for (let i = pipes.length - 1; i >= 0; i--) {
                 const p = pipes[i];
                 p.x -= PIPE_SPEED;
 
                 // Pipe-Bird Collision (AABB)
-                const birdRight = bird.x + BIRD_WIDTH;
-                const birdBottom = bird.y + BIRD_HEIGHT;
-
-                const pipeRight = p.x + PIPE_WIDTH;
-
-                if (birdRight > p.x && bird.x < pipeRight) { // Bird is horizontally aligned with pipe
-                    if (bird.y < p.topHeight || birdBottom > p.bottomY) { // Collision vertically
+                if (bird.x + BIRD_WIDTH > p.x && bird.x < p.x + PIPE_WIDTH) { 
+                    if (bird.y < p.topHeight || bird.y + BIRD_HEIGHT > p.bottomY) { 
                         endGame();
-                        return; // Stop checking further collisions
+                        return;
                     }
                 }
 
                 // Score update
                 if (p.x + PIPE_WIDTH < bird.x && !p.passed) {
                     score++;
-                    scoreDisplay.textContent = `Score: ${score}`;
+                    scoreValue.textContent = score;
                     p.passed = true;
                 }
 
@@ -311,25 +435,18 @@
                     pipes.splice(i, 1);
                 }
             }
-        }
 
-        function updateCoins() {
+            // Update Coins
             for (let i = coins.length - 1; i >= 0; i--) {
                 const c = coins[i];
-                c.x -= PIPE_SPEED; // Coins move with pipes
+                c.x -= PIPE_SPEED; 
 
                 // Coin-Bird Collision (AABB)
-                const birdRight = bird.x + BIRD_WIDTH;
-                const birdBottom = bird.y + BIRD_HEIGHT;
-                const coinRight = c.x + COIN_SIZE;
-                const coinBottom = c.y + COIN_SIZE;
-
-                if (birdRight > c.x && bird.x < coinRight &&
-                    birdBottom > c.y && bird.y < coinBottom) {
+                if (bird.x + BIRD_WIDTH > c.x && bird.x < c.x + COIN_SIZE &&
+                    bird.y + BIRD_HEIGHT > c.y && bird.y < c.y + COIN_SIZE) {
                     coinsCollected++;
-                    totalCoinsEver++; // Add to total collected in this session
-                    coinDisplay.textContent = `Coins: ${coinsCollected}`;
-                    coins.splice(i, 1); // Remove collected coin
+                    coinValue.textContent = coinsCollected;
+                    coins.splice(i, 1); 
                 }
 
                 // Remove off-screen coins
@@ -339,40 +456,83 @@
             }
         }
 
-
         // --- Main Game Loop ---
         function gameLoop() {
             if (gameOver) return;
 
-            // Clear canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#000000'; // Pure black game background
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // 1. Draw Background & Islands (fixed or slow scroll)
+            drawBackground();
+            drawFloatingIslands();
 
             if (gameStarted) {
+                // 2. Update Logic
                 updateBird();
-                updatePipes();
-                updateCoins();
+                updatePipesAndCoins();
+                updateTime();
                 frames++;
             }
 
-            drawPipes();
-            drawCoins();
-            drawBird();
+            // 3. Draw Foreground
+            for (const p of pipes) {
+                drawGlowingPipe(p.x, p.topHeight, false); // Top pipe
+                drawGlowingPipe(p.x, p.bottomY, true);  // Bottom pipe
+            }
+            
+            // Draw Coins (Simple circles with shadow)
+            for (const c of coins) {
+                ctx.fillStyle = COIN_COLOR;
+                ctx.shadowColor = COIN_COLOR;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(c.x + COIN_SIZE / 2, c.y + COIN_SIZE / 2, COIN_SIZE / 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0; // Reset shadow
+            }
+
+            // Draw Bird (with rotation)
+            ctx.save();
+            ctx.translate(bird.x + BIRD_WIDTH / 2, bird.y + BIRD_HEIGHT / 2);
+            ctx.rotate(bird.rotation);
+            drawPixelBird(-BIRD_WIDTH / 2, -BIRD_HEIGHT / 2, BIRD_WIDTH, BIRD_HEIGHT);
+            ctx.restore();
 
             animationFrameId = requestAnimationFrame(gameLoop);
         }
 
-        // --- Event Listeners ---
+        // --- Event Listeners and Initialization ---
         document.addEventListener('keydown', (e) => {
             if (e.key === ' ' || e.key === 'Spacebar') {
+                e.preventDefault(); // Stop page scrolling
                 flap();
             }
         });
-        gameOverlay.addEventListener('click', flap); // Also allow click to start/flap
+        gameOverlay.addEventListener('click', flap);
 
-        // Initialize the game
+        // Draw a large, static version of the bird on the start screen
+        function drawOverlayBird() {
+            const tempCtx = canvas.getContext('2d');
+            const x = canvas.width / 2 - 50;
+            const y = canvas.height / 2 + 50;
+
+            // Use the bird drawing function but larger and without physics
+            tempCtx.save();
+            tempCtx.globalAlpha = 1; // Ensure full visibility
+            tempCtx.shadowBlur = 0;
+
+            // Draw the background once for the initial screen
+            drawBackground();
+            drawFloatingIslands();
+            
+            // Draw the stylized bird large for the menu
+            tempCtx.translate(x + 50, y + 35); 
+            tempCtx.scale(2.5, 2.5); // Make it 2.5x larger than in-game
+            drawPixelBird(-50/2, -35/2, 40, 30); 
+            tempCtx.restore();
+        }
+
+        // Run the initial setup and draw the menu background
         resetGame();
+        drawOverlayBird();
     </script>
 </body>
 </html>
