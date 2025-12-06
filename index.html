@@ -2,149 +2,207 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Single File Platformer</title>
+    <title>Celestial Platformer Single-File Demo</title>
     <style>
-        /* --- CSS STYLES --- */
         body {
-            background-color: #2c3e50;
+            background-color: #121212; /* Deep Space Black */
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
-            font-family: Arial, sans-serif;
-            color: white;
+            font-family: monospace;
+            color: #00FFFF;
+        }
+        #gameContainer {
+            text-align: center;
         }
         canvas {
-            background-color: #ecf0f1;
-            border: 4px solid #34495e;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border: 3px solid #00FFFF; /* Neon Cyan border */
+            image-rendering: pixelated; /* Sharp, retro look */
+            margin-bottom: 10px;
         }
-        p { margin-top: 10px; font-size: 1.2rem; }
+        #controls {
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
-
-    <canvas id="gameCanvas" width="800" height="400"></canvas>
-    <p>Controls: Arrow Keys to Move, Space to Jump</p>
-
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="640" height="480"></canvas>
+        <div id="controls">
+            Use **Left/Right Arrows** to Move, **Spacebar** to Jump.
+        </div>
+    </div>
+    
     <script>
-        // --- JAVASCRIPT GAME LOGIC ---
+        // --- Game Setup ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Physics Constants
-        const gravity = 0.5;
-        const friction = 0.8;
+        const TILE_SIZE = 32; // Size of each tile in pixels
+        const TILE_COLOR = '#7F00FF'; // Electric Violet
 
-        // Player Object
-        const player = {
-            x: 50,
-            y: 200,
-            width: 30,
-            height: 30,
-            speed: 5,
-            dx: 0,
-            dy: 0,
-            jumpStrength: 12,
-            grounded: false,
-            color: '#e74c3c'
-        };
-
-        // Platforms
-        const platforms = [
-            { x: 0, y: 350, width: 800, height: 50 },    // Floor
-            { x: 200, y: 250, width: 100, height: 20 },
-            { x: 450, y: 180, width: 100, height: 20 },
-            { x: 650, y: 120, width: 80, height: 20 },
-            { x: 50, y: 150, width: 50, height: 20 }
+        // Simple Tilemap (0 = empty, 1 = solid tile)
+        // Map is 20 tiles wide (640/32) and 15 tiles high (480/32)
+        const gameMap = [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // The ground
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
         ];
 
-        // Input Handling
-        const keys = { right: false, left: false, up: false };
+        // --- Player Object ---
+        const player = {
+            x: 100,
+            y: 350,
+            width: 20,
+            height: 30,
+            color: '#00FFFF', // Neon Cyan
+            velX: 0,
+            velY: 0,
+            speed: 3,
+            jumpStrength: -8, // Negative for upward movement
+            gravity: 0.3,
+            isGrounded: false
+        };
 
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'ArrowRight') keys.right = true;
-            if (e.code === 'ArrowLeft') keys.left = true;
-            if (e.code === 'Space' || e.code === 'ArrowUp') keys.up = true;
-        });
+        let keys = {};
+        document.addEventListener('keydown', (e) => { keys[e.key] = true; });
+        document.addEventListener('keyup', (e) => { keys[e.key] = false; });
 
-        document.addEventListener('keyup', (e) => {
-            if (e.code === 'ArrowRight') keys.right = false;
-            if (e.code === 'ArrowLeft') keys.left = false;
-            if (e.code === 'Space' || e.code === 'ArrowUp') keys.up = false;
-        });
+        // --- Core Functions ---
 
-        // Main Game Logic
-        function update() {
-            // Horizontal Movement
-            if (keys.right) player.dx = player.speed;
-            else if (keys.left) player.dx = -player.speed;
-            else player.dx *= friction;
+        /**
+         * Checks if a tile at the given pixel coordinates (x, y) is solid (type 1).
+         */
+        function isSolid(x, y) {
+            // Convert pixel coordinates to tile coordinates
+            const tileX = Math.floor(x / TILE_SIZE);
+            const tileY = Math.floor(y / TILE_SIZE);
 
-            player.x += player.dx;
+            // Basic bounds checking
+            if (tileX < 0 || tileY < 0 || tileY >= gameMap.length || tileX >= gameMap[0].length) {
+                return false;
+            }
+            
+            // Check map value
+            return gameMap[tileY][tileX] === 1;
+        }
 
-            // Jumping & Gravity
-            if (keys.up && player.grounded) {
-                player.dy = -player.jumpStrength;
-                player.grounded = false;
+        /**
+         * Handles all player movement and tile-based collision resolution.
+         */
+        function updatePlayer() {
+            // 1. Apply Gravity
+            player.velY += player.gravity;
+
+            // 2. Handle Horizontal Movement
+            if (keys['ArrowLeft']) {
+                player.velX = -player.speed;
+            } else if (keys['ArrowRight']) {
+                player.velX = player.speed;
+            } else {
+                player.velX = 0;
             }
 
-            player.dy += gravity;
-            player.y += player.dy;
-
-            // Collision Detection
-            player.grounded = false;
-            platforms.forEach(platform => {
-                if (
-                    player.x < platform.x + platform.width &&
-                    player.x + player.width > platform.x &&
-                    player.y < platform.y + platform.height &&
-                    player.y + player.height > platform.y
-                ) {
-                    // Check if falling down onto the platform
-                    if (player.dy > 0 && player.y + player.height - player.dy <= platform.y) {
-                        player.grounded = true;
-                        player.dy = 0;
-                        player.y = platform.y - player.height;
-                    }
+            // 3. Handle Jump
+            if (keys[' ']) { // Spacebar for jump
+                if (player.isGrounded) {
+                    player.velY = player.jumpStrength;
+                    player.isGrounded = false;
                 }
-            });
+            }
 
-            // Boundary Checks
-            if (player.x < 0) player.x = 0;
-            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+            // 4. Update Position (X-Axis)
+            player.x += player.velX;
             
-            // Respawn if fallen
-            if (player.y > canvas.height) {
-                player.x = 50;
-                player.y = 200;
-                player.dy = 0;
+            // Horizontal Collision Check (AABB vs Tile)
+            if ((player.velX > 0 && isSolid(player.x + player.width, player.y) || 
+                player.velX > 0 && isSolid(player.x + player.width, player.y + player.height - 1)) ||
+                (player.velX < 0 && isSolid(player.x, player.y) ||
+                player.velX < 0 && isSolid(player.x, player.y + player.height - 1))) 
+            {
+                player.x -= player.velX;
+                player.velX = 0;
+            }
+
+            // 5. Update Position (Y-Axis)
+            player.y += player.velY;
+            player.isGrounded = false;
+
+            // Vertical Collision Check (AABB vs Tile)
+            if ((player.velY > 0 && isSolid(player.x + player.width / 2, player.y + player.height)) ||
+                (player.velY < 0 && isSolid(player.x + player.width / 2, player.y))) 
+            {
+                if (player.velY > 0) { // Landing
+                    player.isGrounded = true;
+                    player.y = Math.floor((player.y + player.height) / TILE_SIZE) * TILE_SIZE - player.height;
+                } else { // Hitting head
+                    player.y = (Math.floor(player.y / TILE_SIZE) + 1) * TILE_SIZE;
+                }
+                player.velY = 0;
             }
         }
 
-        // Render Function
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        /**
+         * Draws the tile map to the canvas.
+         */
+        function drawMap() {
+            ctx.fillStyle = TILE_COLOR;
+            for (let y = 0; y < gameMap.length; y++) {
+                for (let x = 0; x < gameMap[y].length; x++) {
+                    if (gameMap[y][x] === 1) {
+                        // Draw a solid tile
+                        ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                        
+                        // Add a slight grid line for visual appeal
+                        ctx.strokeStyle = '#5A00AB'; // Darker violet for separation
+                        ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                    }
+                }
+            }
+        }
 
-            // Draw Platforms
-            ctx.fillStyle = '#27ae60';
-            platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
-
-            // Draw Player
+        /**
+         * Draws the player character.
+         */
+        function drawPlayer() {
             ctx.fillStyle = player.color;
             ctx.fillRect(player.x, player.y, player.width, player.height);
         }
 
-        // Loop
-        function loop() {
-            update();
-            draw();
-            requestAnimationFrame(loop);
+        /**
+         * The main game loop function.
+         */
+        function gameLoop() {
+            // 1. Clear the canvas 
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 2. Update Game Logic
+            updatePlayer();
+
+            // 3. Draw Game Elements
+            drawMap();
+            drawPlayer();
+
+            // Request the next frame for smooth animation
+            requestAnimationFrame(gameLoop);
         }
 
-        loop();
+        // Start the game loop
+        gameLoop();
     </script>
 </body>
 </html>
